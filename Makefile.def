@@ -1,0 +1,156 @@
+.SUFFIXES:
+
+BINDIR=$(CODETOP)/bin
+MAKEFLAGS += --no-print-directory
+
+CC = g++
+CPPFLAGS = -Wall -g -fno-builtin 
+
+CPPFLAGS += $(OTHER_CPPFLAGS)
+CPPFLAGS += $(DEFINES:%=-D %)
+
+
+#STDINCLUDES = -I $(CODETOP)/base/include 
+#OSINCLUDES = -I $(CODETOP)/base/include/linux
+
+ifneq (0,$(DEBUG_BUILD))
+CPPFLAGS += 
+ARFLAGS +=
+LDFLAGS +=
+else
+CPPFLAGS += -O2 -D "NDEBUG" -Wno-strict-aliasing
+ARFLAGS +=
+LDFLAGS +=
+endif
+
+MLIBS = $(foreach DEP_M,$(DEPEND_MODULES),$(CODETOP)/$(DEP_M)/lib$(notdir $(DEP_M)))
+MINCLUDES = $(foreach DEP_M,$(DEPEND_MODULES),-I $(CODETOP)/$(DEP_M))
+
+SOURCES = $(CSOURCES) $(CPPSOURCES)
+COBJECTS = $(CSOURCES:%.c=%.o)
+CPPOBJECTS = $(CPPSOURCES:%.cpp=%.o)
+OBJECTS = $(COBJECTS) $(CPPOBJECTS)
+OBJECTLIBS = $(MLIBS:%=%.a)
+OTHEROBJECTLIBS = $(OTHER_LIBS:%=%.a)
+
+.PHONY: prebuild subdirs depend all $(SUBDIRS) clean
+
+default: all
+
+ifeq (PROGRAM, $(TARGETTYPE))
+
+ifeq (,$(TARGET))
+TARGET = $(notdir $(CURDIR))
+endif
+
+target: $(TARGET)
+
+targetclean: $(SUBDIRS)
+	@echo "Removing $(TARGET)"
+	@rm -rf $(TARGET)
+	@rm -rf $(BINDIR)/$(TARGET)
+	@rm -rf lib$(TARGET).a
+
+else
+ifeq (LIBRARY, $(TARGETTYPE))
+
+ifeq (,$(TARGET))
+TARGET = lib$(notdir $(CURDIR))
+endif
+
+target: $(TARGET).a
+
+targetclean: $(SUBDIRS)
+	@echo "Removing $(TARGET).a"
+	@rm -rf $(TARGET).a
+else
+target: ;
+
+targetclean: ;
+endif
+endif
+
+ifeq (,$(PRECOMPILE_SCRIPT))
+
+prebuild: ;
+
+else
+prebuild:
+	@$(PRECOMPILE_SCRIPT)
+
+endif
+
+ifeq (,$(POSTCLEAN_SCRIPT))
+
+postclean: ;
+
+else
+postclean:
+	@$(POSTCLEAN_SCRIPT)
+	@rm -rf $(BINDIR)
+
+endif
+
+all: depend target subdirs
+
+clean: testclean targetclean objclean depclean postclean 
+	@echo "Removing $(BINDIR)"
+	@rm -rf $(BINDIR)
+
+ifeq (,$(CSOURCES))
+
+%.o: %.cpp
+	@echo $(OBJECTLIBS)
+	@echo "$(CC): compiling $<"
+	$(CC) $(CPPFLAGS) $(STDINCLUDES) $(OSINCLUDES) $(MINCLUDES) $(OTHER_INCLUDES) -c $< -o $@
+
+else
+ifeq (,$(CPPSOURCES))
+
+%.o: %.c
+	@echo "$(CC): compiling $<"
+	@$(CC) $(CPPFLAGS) $(STDINCLUDES) $(OSINCLUDES) $(MINCLUDES) $(OTHER_INCLUDES) -c $< -o $@
+
+endif
+endif
+$(TARGET).a: $(OBJECTS) $(OBJECTLIBS)
+	@ar $(ARFLAGS) $(TARGET).a $(OBJECTS)  >> /dev/null
+
+$(TARGET): $(OBJECTS) $(OBJECTLIBS)
+	@echo $(CC): creating $@
+	@$(CODETOP)/combine_archives.sh lib$@.a $(OBJECTS) $(OBJECTLIBS) $(OTHEROBJECTLIBS) 
+	@$(CC) $(LDFLAGS) -o $@ lib$@.a $(OTHER_LDFLAGS) -lpthread -lc -Wl,-non_shared -Wl,-call_shared
+	@rm -rf lib$@.a
+	@mkdir -p $(BINDIR)
+	@cp $@ $(BINDIR)
+
+subdirs: $(SUBDIRS) 
+
+$(SUBDIRS):
+	@$(MAKE) -C $@ MODULENAME=$@ $(MAKECMDGOALS) 
+
+list: $(SUBDIRS)
+	@echo $(CURDIR)
+
+DEPENDS = $(CSOURCES:%.c=%.d) $(CPPSOURCES:%.cpp=%.d)
+
+depend: $(DEPENDS)
+
+$(DEPENDS): $(SOURCES)
+	@$(CC) $(CPPFLAGS) $(STDINCLUDES) $(OSINCLUDES) $(MINCLUDES) $(OTHER_INCLUDES) -MM $< | \
+	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g'  > $@; 
+
+
+objclean: $(SUBDDIRS)
+	@echo "Removing *.o"
+	@rm -rf $(OBJECTS)
+
+testclean: $(SUBDDIRS)
+	@echo "Removing test_output"
+	@rm -rf test_output
+
+depclean: $(SUBDIRS)
+	@echo "Removing *.d"
+	@rm -rf $(CSOURCES:%.c=%.d) $(CPPSOURCES:%.cpp=%.d)
+
+-include *.d
