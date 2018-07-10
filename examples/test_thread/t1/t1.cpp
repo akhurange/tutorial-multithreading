@@ -25,7 +25,7 @@ main(
     int i=2;
     void *k;
 
-    Thread t1 = Thread(table, &i);
+    Thread t1(table, &i);
     k = t1.joinThread();
     printf("%d\n", *((int *)k));
     delete ((int *)k);

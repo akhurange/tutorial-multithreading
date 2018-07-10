@@ -3,6 +3,7 @@
 
 #include "os_headers.h"
 #include "common.h"
+#include "not_copyable.h"
 #include "base_exception.h"
 
 #endif //_BASE_H_

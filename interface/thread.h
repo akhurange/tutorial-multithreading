@@ -28,7 +28,7 @@ struct ThreadData {
     ThreadReturn result;
 };
 
-class Thread
+class Thread : public NotCopyable
 {
 public:
 
