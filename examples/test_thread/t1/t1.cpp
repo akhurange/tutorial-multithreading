@@ -1,7 +1,7 @@
 #include "base.h"
 #include "interface.h"
 
-void *
+void 
 table(
     void *arg
     )
@@ -11,9 +11,6 @@ table(
         printf("%d ", i*j);
     }
     printf("\n");
-    int *k = new int;
-    *k = i*i;
-    return k;
 }
 
 int
@@ -23,11 +20,8 @@ main(
 	)
 {
     int i=2;
-    void *k;
 
     Thread t1(table, &i);
-    k = t1.joinThread();
-    printf("%d\n", *((int *)k));
-    delete ((int *)k);
+    t1.joinThread();
     return 0;
 }

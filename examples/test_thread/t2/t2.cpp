@@ -3,13 +3,12 @@
 
 class MyClass : public Runner
 {
-    void *
+    void 
     threadRoutine (
         void *arg
         )
     {
         printf("Hello world!\n");
-        return NULL;
     }
 };
 
@@ -21,6 +20,7 @@ main(
 {
     MyClass obj = MyClass();
     Thread *t1 = new Thread(&obj, NULL);
+    t1->joinThread();
     delete t1;
 
     return 0;

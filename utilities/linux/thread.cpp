@@ -10,22 +10,30 @@ void
 Thread::startThread()
 {
     // Create thread and execute jumper function PvtRun.
-    int ret = pthread_create(&m_thread, NULL, PvtRun, (void*)m_threadData);
+    int ret = pthread_create(&m_thread, NULL, PvtRun, (void*)(&m_threadData));
     if (ret != 0) {
-        throw BaseException(errno, "Error in thread creation");
+        throw BaseException(errno, "Error in thread creation.");
     }
 }
 
-ThreadReturn 
+void
 Thread::joinThread()
 {
+    m_threadJoined = true;
     // Block till the thread exit.
     int stat = pthread_join(m_thread, NULL);
     if (stat != 0) {
-        throw BaseException(errno, "Error joining thread");
+        throw BaseException(errno, "Error joining thread.");
     }
-    m_threadJoined = true;
-    return m_threadData->result;
+}
+
+void
+Thread::detachThread()
+{
+    int stat = pthread_detach(m_thread);
+    if (stat != 0) {
+        throw BaseException(errno, "Error detaching thread.");
+    }
 }
 
 void *
@@ -37,11 +45,11 @@ PvtRun(
     ThreadData *th = (ThreadData*)arg;
 
     if (th->startRoutine != NULL) {
-        // Run the stand alone function and store the result.
-        th->result = th->startRoutine(th->arg);
+        // Run the stand alone function.
+        th->startRoutine(th->arg);
     } else if (th->threadClass != NULL) {
-        // Run the class member function and store the result.
-        th->result = th->threadClass->threadRoutine(th->arg);
+        // Run the class member function.
+        th->threadClass->threadRoutine(th->arg);
     }
 
     return NULL;

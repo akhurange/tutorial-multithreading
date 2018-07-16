@@ -1,20 +1,18 @@
 #ifndef _THREAD_H_
 #define _THREAD_H_
 
-typedef void* ThreadReturn;
 typedef void* ThreadArg;
 // Thread function has been defined as:
-// void* (*) (void *)
-// One can change definition of ThreadReturn or ThreadArg to change ThreadFunction definition.
-typedef ThreadReturn (*ThreadFunction) (ThreadArg);
+// void (*) (void *)
+typedef void (*ThreadFunction) (void *);
 
 class Runner {
 public:
 
     // Force derived class to implement threadRoutine.
-    virtual ThreadReturn
+    virtual void 
     threadRoutine(
-        ThreadArg arg
+        void *arg
         ) = 0;        
 
     virtual
@@ -24,8 +22,7 @@ public:
 struct ThreadData {
     ThreadFunction startRoutine;
     Runner *threadClass;
-    ThreadArg arg;
-    ThreadReturn result;
+    void *arg;
 };
 
 class Thread : public NotCopyable
@@ -35,11 +32,10 @@ public:
     // Constructor for stand alone function.
     Thread(
         ThreadFunction startRoutine,
-        ThreadArg arg
+        void *arg
         )
     {
-        m_threadData = new ThreadData;
-        *m_threadData = (ThreadData){startRoutine, NULL, arg, (ThreadReturn)0};
+        m_threadData = (ThreadData){startRoutine, NULL, arg};
         m_threadJoined = false;
         startThread();
     }
@@ -50,8 +46,7 @@ public:
         ThreadArg arg
         )
     {
-        m_threadData = new ThreadData;
-        *m_threadData = (ThreadData){NULL, threadClass, arg, (ThreadReturn)0};
+        m_threadData = (ThreadData){NULL, threadClass, arg};
         m_threadJoined = false;
         startThread();
     }
@@ -59,13 +54,13 @@ public:
     ~Thread() 
     {
         if (!m_threadJoined) {
-            // Wait till the thread execution completes.
-            joinThread();
+            // If thread was not joined detach it.
+            // Allow it to run in background even after the object is destructed.
+            detachThread();
         }
-        delete m_threadData;
     }
 
-    ThreadReturn 
+    void
     joinThread();
 
 private:
@@ -73,9 +68,13 @@ private:
     void
     startThread();
 
-    ThreadData *m_threadData;
+    void
+    detachThread();
+
+    ThreadData m_threadData;
     bool m_threadJoined;
     THREAD m_thread;
 };
 
 #endif // _THREAD_H_
+
